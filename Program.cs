@@ -16,30 +16,19 @@ var dataPath = builder.Configuration["DataFile"]
                ?? Path.Combine(builder.Environment.ContentRootPath, "Data", "tracker.json");
 builder.Services.AddSingleton(new DataStore(dataPath));
 builder.Services.AddSingleton<AnalyticsService>();
+builder.Services.AddSingleton<ToastService>();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
 
 var app = builder.Build();
 
-app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseAntiforgery();
 
 var api = app.MapGroup("/api");
 
-// ---------- Mapping helper ----------
-static ResourceDto ToDto(StudyResource r, DataFile d, DateOnly today)
-{
-    var course = d.Courses.FirstOrDefault(c => c.Id == r.CourseId);
-    return new ResourceDto(
-        r.Id, r.CourseId, course?.Code ?? "?", course?.Title ?? "Unknown course",
-        r.Title, r.Type, r.Url, r.Notes, r.Status, r.Priority, r.DueDate, r.Tags,
-        r.Status != ResourceStatus.Completed && r.DueDate < today,
-        r.CreatedAt, r.CompletedAt);
-}
-
-static void ApplyStatus(StudyResource r, ResourceStatus status)
-{
-    r.Status = status;
-    r.CompletedAt = status == ResourceStatus.Completed ? (r.CompletedAt ?? DateTime.UtcNow) : null;
-}
+static ResourceDto ToDto(StudyResource r, DataFile d, DateOnly today) => Mapping.ToDto(r, d, today);
+static void ApplyStatus(StudyResource r, ResourceStatus status) => Mapping.ApplyStatus(r, status);
 
 // =====================================================================
 // COURSES
@@ -250,5 +239,8 @@ api.MapGet("/export/csv", (DataStore s) =>
     var bytes = new UTF8Encoding(true).GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
     return Results.File(bytes, "text/csv", $"academic-resources-{today:yyyyMMdd}.csv");
 });
+
+app.MapRazorComponents<StudentResourceTracker.Components.App>()
+    .AddInteractiveServerRenderMode();
 
 app.Run();

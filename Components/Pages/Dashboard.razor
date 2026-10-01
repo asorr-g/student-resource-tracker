@@ -1,0 +1,106 @@
+@page "/"
+@inject AnalyticsService Analytics
+
+<section class="panel">
+    <div class="hero">
+        <p class="eyebrow">This semester</p>
+        <h2>See what is due, done, and still waiting.</h2>
+        <p class="lede">One place for notes, assignments, and deadlines — so nothing slips between lectures.</p>
+    </div>
+
+    <div class="kpis">
+        <div class="kpi"><div class="ico">📘</div><div class="n">@_summary.TotalCourses</div><div class="l">Courses</div></div>
+        <div class="kpi"><div class="ico">🗂️</div><div class="n">@_summary.TotalResources</div><div class="l">Resources</div></div>
+        <div class="kpi ok"><div class="ico">✅</div><div class="n">@_summary.CompletionRate%</div><div class="l">Completion</div></div>
+        <div class="kpi"><div class="ico">⏳</div><div class="n">@_summary.InProgress</div><div class="l">In progress</div></div>
+        <div class="kpi @(_summary.DueWithin7Days > 0 ? "warn" : "")"><div class="ico">📅</div><div class="n">@_summary.DueWithin7Days</div><div class="l">Due in 7 days</div></div>
+        <div class="kpi @(_summary.Overdue > 0 ? "bad" : "")"><div class="ico">⚠️</div><div class="n">@_summary.Overdue</div><div class="l">Overdue</div></div>
+    </div>
+
+    <div class="grid2">
+        <div class="card">
+            <div class="card-head">
+                <h2>Progress by course</h2>
+                <span class="chip ghost">Completion</span>
+            </div>
+            @if (_summary.ByCourse.Count == 0)
+            {
+                <p class="empty">No courses yet.</p>
+            }
+            else
+            {
+                @foreach (var c in _summary.ByCourse)
+                {
+                    <div class="bar-row">
+                        <span class="lbl" title="@($"{c.CourseCode} · {c.Completed}/{c.Total}")">@c.CourseCode · @c.Completed/@c.Total</span>
+                        <div class="bar ok"><span style="--w:@c.CompletionRate%"></span></div>
+                        <span class="val">@c.CompletionRate%</span>
+                    </div>
+                }
+            }
+        </div>
+        <div class="card">
+            <div class="card-head">
+                <h2>Upcoming deadlines</h2>
+                <span class="chip ghost">Next 14 days</span>
+            </div>
+            @if (_summary.Upcoming.Count == 0)
+            {
+                <p class="empty">Nothing due. You’re clear.</p>
+            }
+            else
+            {
+                @foreach (var u in _summary.Upcoming)
+                {
+                    var cls = u.DaysLeft < 0 ? "overdue" : u.DaysLeft <= 3 ? "soon" : "";
+                    var when = u.DaysLeft < 0 ? $"{-u.DaysLeft}d overdue" : u.DaysLeft == 0 ? "Today" : $"in {u.DaysLeft}d";
+                    <div class="upc">
+                        <div>@u.Title<small>@u.CourseCode · @Labels.Pretty(u.Priority) priority</small></div>
+                        <div class="when @cls">@when<small>@Labels.Date(u.DueDate)</small></div>
+                    </div>
+                }
+            }
+        </div>
+        <div class="card">
+            <div class="card-head"><h2>Resources by type</h2></div>
+            @if (_summary.ByType.Count == 0)
+            {
+                <p class="empty">No resources yet.</p>
+            }
+            else
+            {
+                var maxType = _summary.ByType.Max(t => t.Count);
+                @foreach (var t in _summary.ByType)
+                {
+                    var pct = maxType > 0 ? Math.Round(100.0 * t.Count / maxType) : 0;
+                    <div class="bar-row">
+                        <span class="lbl">@Labels.Pretty(t.Label)</span>
+                        <div class="bar"><span style="--w:@pct%"></span></div>
+                        <span class="val">@t.Count</span>
+                    </div>
+                }
+            }
+        </div>
+        <div class="card">
+            <div class="card-head"><h2>Open items by priority</h2></div>
+            @{
+                var maxPri = _summary.OpenByPriority.Count == 0 ? 0 : _summary.OpenByPriority.Max(t => t.Count);
+            }
+            @foreach (var t in _summary.OpenByPriority)
+            {
+                var pct = maxPri > 0 ? Math.Round(100.0 * t.Count / maxPri) : 0;
+                <div class="bar-row">
+                    <span class="lbl">@t.Label</span>
+                    <div class="bar pri-@t.Label"><span style="--w:@pct%"></span></div>
+                    <span class="val">@t.Count</span>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private SummaryDto _summary = new(0, 0, 0, 0, 0, 0, 0, 0, [], [], [], []);
+
+    protected override void OnInitialized() => _summary = Analytics.BuildSummary();
+}

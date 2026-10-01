@@ -1,0 +1,75 @@
+@inherits LayoutComponentBase
+@inject IJSRuntime JS
+@inject ToastService Toasts
+@implements IDisposable
+
+<header class="topbar">
+    <div class="brand">
+        <span class="logo" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="28" height="28"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M8 11.5 16 8l8 3.5v8.2c0 3.4-3.5 5.6-8 7.3-4.5-1.7-8-3.9-8-7.3V11.5Z" fill="#fff" opacity=".95"/><path d="M16 12v10.2" stroke="#0f766e" stroke-width="1.6" stroke-linecap="round"/><path d="M12.2 14.2h7.6" stroke="#0f766e" stroke-width="1.4" stroke-linecap="round"/></svg>
+        </span>
+        <div>
+            <h1>Campus Pulse</h1>
+            <p class="tagline">Academic resource tracker</p>
+        </div>
+    </div>
+    <nav>
+        <NavLink class="tab" href="/" Match="NavLinkMatch.All">Dashboard</NavLink>
+        <NavLink class="tab" href="resources">Resources</NavLink>
+        <NavLink class="tab" href="courses">Courses</NavLink>
+    </nav>
+    <button class="theme-btn" type="button" aria-label="Toggle color theme" @onclick="ToggleTheme">
+        <span class="theme-sun" aria-hidden="true">☀️</span>
+        <span class="theme-moon" aria-hidden="true">🌙</span>
+    </button>
+</header>
+
+<main>
+    @Body
+</main>
+
+@if (!string.IsNullOrEmpty(_toast))
+{
+    <div class="toast">@_toast</div>
+}
+
+@code {
+    private string? _toast;
+    private CancellationTokenSource? _toastCts;
+
+    protected override void OnInitialized() => Toasts.Shown += ShowToast;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await JS.InvokeVoidAsync("theme.init");
+    }
+
+    private async Task ToggleTheme() => await JS.InvokeVoidAsync("theme.toggle");
+
+    private void ShowToast(string message)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            _toastCts?.Cancel();
+            _toastCts = new CancellationTokenSource();
+            var token = _toastCts.Token;
+            _toast = message;
+            StateHasChanged();
+            try
+            {
+                await Task.Delay(3000, token);
+                _toast = null;
+                StateHasChanged();
+            }
+            catch (TaskCanceledException) { }
+        });
+    }
+
+    public void Dispose()
+    {
+        Toasts.Shown -= ShowToast;
+        _toastCts?.Cancel();
+        _toastCts?.Dispose();
+    }
+}
