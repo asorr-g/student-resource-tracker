@@ -1,0 +1,347 @@
+@page "/resources"
+@inject DataStore Store
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<section class="panel">
+    <div class="page-head">
+        <div>
+            <p class="eyebrow">Library</p>
+            <h2>Study resources</h2>
+            <p class="lede">Filter, track status, and jump to the material you need.</p>
+        </div>
+    </div>
+    <div class="toolbar">
+        <input type="search" placeholder="Search title, notes, tags…" @bind="_q" @bind:event="oninput" @bind:after="Reload" />
+        <select @bind="_courseId" @bind:after="Reload">
+            <option value="">All courses</option>
+            @foreach (var c in _courses)
+            {
+                <option value="@c.Id">@c.Code — @c.Title</option>
+            }
+        </select>
+        <select @bind="_type" @bind:after="Reload">
+            <option value="">All types</option>
+            @foreach (var t in Enum.GetValues<ResourceType>())
+            {
+                <option value="@t">@Labels.Pretty(t)</option>
+            }
+        </select>
+        <select @bind="_status" @bind:after="Reload">
+            <option value="">All statuses</option>
+            @foreach (var s in Enum.GetValues<ResourceStatus>())
+            {
+                <option value="@s">@Labels.Pretty(s)</option>
+            }
+        </select>
+        <select @bind="_priority" @bind:after="Reload">
+            <option value="">All priorities</option>
+            @foreach (var p in Enum.GetValues<Priority>())
+            {
+                <option value="@p">@p</option>
+            }
+        </select>
+        <label class="chk"><input type="checkbox" @bind="_overdueOnly" @bind:after="Reload" /> Overdue only</label>
+        <span class="spacer"></span>
+        <a class="btn" href="/api/export/csv">Export CSV</a>
+        <button class="btn primary" type="button" @onclick="StartAdd">Add resource</button>
+    </div>
+    <div class="card tablewrap">
+        @if (_resources.Count == 0)
+        {
+            <p class="empty">No resources match your filters. Try clearing a filter or add something new.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr><th>Title</th><th>Course</th><th>Type</th><th>Priority</th><th>Due</th><th>Status</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in _resources)
+                    {
+                        var color = Labels.TypeColor(r.Type);
+                        <tr class="@(r.Status == ResourceStatus.Completed ? "done" : "")">
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(r.Url))
+                                {
+                                    <a class="t-title" href="@r.Url" target="_blank" rel="noopener noreferrer">@r.Title ↗</a>
+                                }
+                                else
+                                {
+                                    <span class="t-title">@r.Title</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(r.Notes))
+                                {
+                                    <div class="t-sub">@(r.Notes.Length > 90 ? r.Notes[..90] + "…" : r.Notes)</div>
+                                }
+                                <div>
+                                    @foreach (var tag in r.Tags)
+                                    {
+                                        <span class="tag">@tag</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>@r.CourseCode</td>
+                            <td>
+                                <span class="type-badge">
+                                    <span class="type-dot" style="background:@color;box-shadow:0 0 0 4px @(color)33"></span>
+                                    @Labels.Pretty(r.Type)
+                                </span>
+                            </td>
+                            <td><span class="pill @r.Priority">@r.Priority</span></td>
+                            <td class="due @(r.IsOverdue ? "overdue" : "")">
+                                @Labels.Date(r.DueDate)
+                                @if (r.IsOverdue)
+                                {
+                                    <div class="t-sub">Overdue</div>
+                                }
+                            </td>
+                            <td>
+                                <select value="@r.Status" @onchange="e => ChangeStatus(r.Id, e)">
+                                    @foreach (var s in Enum.GetValues<ResourceStatus>())
+                                    {
+                                        <option value="@s">@Labels.Pretty(s)</option>
+                                    }
+                                </select>
+                            </td>
+                            <td style="white-space:nowrap">
+                                <button class="btn sm" type="button" @onclick="() => OpenDialog(r)">Edit</button>
+                                <button class="btn sm danger" type="button" @onclick="() => Delete(r)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</section>
+
+@if (_showDialog)
+{
+    <div class="modal-backdrop" @onclick="CloseDialog">
+        <div class="modal" @onclick:stopPropagation="true">
+            <form @onsubmit="Save" @onsubmit:preventDefault="true">
+                <h3>@(_editingId is null ? "Add resource" : "Edit resource")</h3>
+                <label>Title *<input @bind="_title" required maxlength="200" /></label>
+                <div class="row">
+                    <label>Course *
+                        <select @bind="_formCourseId" required>
+                            @foreach (var c in _courses)
+                            {
+                                <option value="@c.Id">@c.Code — @c.Title</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Type
+                        <select @bind="_formType">
+                            @foreach (var t in Enum.GetValues<ResourceType>())
+                            {
+                                <option value="@t">@Labels.Pretty(t)</option>
+                            }
+                        </select>
+                    </label>
+                </div>
+                <div class="row">
+                    <label>Status
+                        <select @bind="_formStatus">
+                            @foreach (var s in Enum.GetValues<ResourceStatus>())
+                            {
+                                <option value="@s">@Labels.Pretty(s)</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Priority
+                        <select @bind="_formPriority">
+                            @foreach (var p in Enum.GetValues<Priority>())
+                            {
+                                <option value="@p">@p</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Due date<input type="date" @bind="_dueDate" /></label>
+                </div>
+                <label>Link (URL)<input @bind="_url" type="url" placeholder="https://…" /></label>
+                <label>Tags (comma separated)<input @bind="_tags" placeholder="exam, revision" /></label>
+                <label>Notes<textarea @bind="_notes" rows="3" maxlength="2000"></textarea></label>
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <p class="error">@_error</p>
+                }
+                <div class="actions">
+                    <button type="button" class="btn" @onclick="CloseDialog">Cancel</button>
+                    <button type="submit" class="btn primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CourseDto> _courses = [];
+    private List<ResourceDto> _resources = [];
+    private string _q = "";
+    private string _courseId = "";
+    private string _type = "";
+    private string _status = "";
+    private string _priority = "";
+    private bool _overdueOnly;
+
+    private bool _showDialog;
+    private Guid? _editingId;
+    private string _title = "", _url = "", _notes = "", _tags = "", _error = "";
+    private Guid _formCourseId;
+    private ResourceType _formType = ResourceType.LectureNotes;
+    private ResourceStatus _formStatus = ResourceStatus.NotStarted;
+    private Priority _formPriority = Priority.Medium;
+    private DateOnly? _dueDate;
+
+    protected override void OnInitialized() => Reload();
+
+    private void Reload()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        _courses = Store.Read(d => d.Courses
+            .OrderBy(c => c.Code)
+            .Select(c => new CourseDto(c.Id, c.Code, c.Title, c.Lecturer, c.Semester, 0))
+            .ToList());
+
+        Guid? courseFilter = Guid.TryParse(_courseId, out var cid) ? cid : null;
+        ResourceType? typeFilter = Enum.TryParse<ResourceType>(_type, out var tf) ? tf : null;
+        ResourceStatus? statusFilter = Enum.TryParse<ResourceStatus>(_status, out var sf) ? sf : null;
+        Priority? priFilter = Enum.TryParse<Priority>(_priority, out var pf) ? pf : null;
+        var term = _q.Trim();
+
+        _resources = Store.Read(d =>
+        {
+            IEnumerable<StudyResource> query = d.Resources;
+            if (courseFilter is not null) query = query.Where(r => r.CourseId == courseFilter);
+            if (typeFilter is not null) query = query.Where(r => r.Type == typeFilter);
+            if (statusFilter is not null) query = query.Where(r => r.Status == statusFilter);
+            if (priFilter is not null) query = query.Where(r => r.Priority == priFilter);
+            if (_overdueOnly) query = query.Where(r => r.Status != ResourceStatus.Completed && r.DueDate < today);
+            if (term.Length > 0)
+                query = query.Where(r =>
+                    r.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    (r.Notes?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    r.Tags.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase)));
+
+            return query
+                .OrderBy(r => r.Status == ResourceStatus.Completed)
+                .ThenBy(r => r.DueDate ?? DateOnly.MaxValue)
+                .ThenBy(r => r.Title)
+                .Select(r => Mapping.ToDto(r, d, today))
+                .ToList();
+        });
+    }
+
+    private void StartAdd()
+    {
+        if (_courses.Count == 0)
+        {
+            Toasts.Show("Add a course first.");
+            Nav.NavigateTo("/courses");
+            return;
+        }
+        OpenDialog(null);
+    }
+
+    private void OpenDialog(ResourceDto? r)
+    {
+        _editingId = r?.Id;
+        _title = r?.Title ?? "";
+        _formCourseId = r?.CourseId ?? _courses[0].Id;
+        _formType = r?.Type ?? ResourceType.LectureNotes;
+        _formStatus = r?.Status ?? ResourceStatus.NotStarted;
+        _formPriority = r?.Priority ?? Priority.Medium;
+        _dueDate = r?.DueDate;
+        _url = r?.Url ?? "";
+        _tags = r is null ? "" : string.Join(", ", r.Tags);
+        _notes = r?.Notes ?? "";
+        _error = "";
+        _showDialog = true;
+    }
+
+    private void CloseDialog() => _showDialog = false;
+
+    private void ChangeStatus(Guid id, ChangeEventArgs e)
+    {
+        if (!Enum.TryParse<ResourceStatus>(e.Value?.ToString(), out var status)) return;
+        Store.Write(d =>
+        {
+            var r = d.Resources.FirstOrDefault(x => x.Id == id);
+            if (r is not null) Mapping.ApplyStatus(r, status);
+            return true;
+        });
+        Reload();
+    }
+
+    private async Task Delete(ResourceDto r)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Delete \"{r.Title}\"?")) return;
+        Store.Write(d => d.Resources.RemoveAll(x => x.Id == r.Id) > 0);
+        Toasts.Show("Resource deleted");
+        Reload();
+    }
+
+    private void Save()
+    {
+        var input = new ResourceInput(_formCourseId, _title, _formType, _url, _notes, _formStatus, _formPriority, _dueDate,
+            _tags.Split(',').ToList());
+        var errors = Validators.Resource(input);
+        if (errors.Count > 0)
+        {
+            _error = string.Join(" ", errors.SelectMany(x => x.Value));
+            return;
+        }
+
+        var result = Store.Write(d =>
+        {
+            if (!d.Courses.Any(c => c.Id == input.CourseId))
+                return "Please choose a valid course.";
+
+            if (_editingId is Guid id)
+            {
+                var r = d.Resources.FirstOrDefault(x => x.Id == id);
+                if (r is null) return "Resource not found.";
+                r.CourseId = input.CourseId;
+                r.Title = input.Title!.Trim();
+                r.Type = input.Type;
+                r.Url = string.IsNullOrWhiteSpace(input.Url) ? null : input.Url.Trim();
+                r.Notes = string.IsNullOrWhiteSpace(input.Notes) ? null : input.Notes.Trim();
+                r.Priority = input.Priority;
+                r.DueDate = input.DueDate;
+                r.Tags = Validators.CleanTags(input.Tags);
+                Mapping.ApplyStatus(r, input.Status);
+            }
+            else
+            {
+                var r = new StudyResource
+                {
+                    CourseId = input.CourseId,
+                    Title = input.Title!.Trim(),
+                    Type = input.Type,
+                    Url = string.IsNullOrWhiteSpace(input.Url) ? null : input.Url.Trim(),
+                    Notes = string.IsNullOrWhiteSpace(input.Notes) ? null : input.Notes.Trim(),
+                    Priority = input.Priority,
+                    DueDate = input.DueDate,
+                    Tags = Validators.CleanTags(input.Tags)
+                };
+                Mapping.ApplyStatus(r, input.Status);
+                d.Resources.Add(r);
+            }
+            return null;
+        });
+
+        if (result is not null)
+        {
+            _error = result;
+            return;
+        }
+
+        _showDialog = false;
+        Toasts.Show("Resource saved");
+        Reload();
+    }
+}

@@ -1,0 +1,155 @@
+@page "/courses"
+@inject DataStore Store
+@inject ToastService Toasts
+@inject IJSRuntime JS
+
+<section class="panel">
+    <div class="page-head">
+        <div>
+            <p class="eyebrow">Catalogue</p>
+            <h2>Your courses</h2>
+            <p class="lede">Each course is a shelf for notes, assignments, and links.</p>
+        </div>
+        <button class="btn primary" type="button" @onclick="() => OpenDialog(null)">Add course</button>
+    </div>
+
+    @if (_courses.Count == 0)
+    {
+        <p class="empty empty-card">No courses yet. Add your first one and start stacking resources.</p>
+    }
+    else
+    {
+        <div class="course-grid">
+            @foreach (var c in _courses)
+            {
+                <article class="course-card">
+                    <span class="course-code">@c.Code</span>
+                    <h3>@c.Title</h3>
+                    <p class="course-meta">@(string.IsNullOrWhiteSpace(c.Lecturer) ? "Lecturer TBA" : c.Lecturer) · @(string.IsNullOrWhiteSpace(c.Semester) ? "No semester" : c.Semester)</p>
+                    <p class="course-count">@c.ResourceCount resource@(c.ResourceCount == 1 ? "" : "s")</p>
+                    <div class="course-actions">
+                        <button class="btn sm" type="button" @onclick="() => OpenDialog(c)">Edit</button>
+                        <button class="btn sm danger" type="button" @onclick="() => Delete(c)">Delete</button>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@if (_showDialog)
+{
+    <div class="modal-backdrop" @onclick="CloseDialog">
+        <div class="modal" @onclick:stopPropagation="true">
+            <form @onsubmit="Save" @onsubmit:preventDefault="true">
+                <h3>@(_editingId is null ? "Add course" : "Edit course")</h3>
+                <div class="row">
+                    <label>Code *<input @bind="_code" required maxlength="20" placeholder="CS 301" /></label>
+                    <label>Semester<input @bind="_semester" maxlength="40" placeholder="Semester 1" /></label>
+                </div>
+                <label>Title *<input @bind="_title" required maxlength="120" /></label>
+                <label>Lecturer<input @bind="_lecturer" maxlength="80" /></label>
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <p class="error">@_error</p>
+                }
+                <div class="actions">
+                    <button type="button" class="btn" @onclick="CloseDialog">Cancel</button>
+                    <button type="submit" class="btn primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CourseDto> _courses = [];
+    private bool _showDialog;
+    private Guid? _editingId;
+    private string _code = "", _title = "", _lecturer = "", _semester = "", _error = "";
+
+    protected override void OnInitialized() => Reload();
+
+    private void Reload() =>
+        _courses = Store.Read(d => d.Courses
+            .OrderBy(c => c.Code)
+            .Select(c => new CourseDto(c.Id, c.Code, c.Title, c.Lecturer, c.Semester,
+                d.Resources.Count(r => r.CourseId == c.Id)))
+            .ToList());
+
+    private void OpenDialog(CourseDto? course)
+    {
+        _editingId = course?.Id;
+        _code = course?.Code ?? "";
+        _title = course?.Title ?? "";
+        _lecturer = course?.Lecturer ?? "";
+        _semester = course?.Semester ?? "";
+        _error = "";
+        _showDialog = true;
+    }
+
+    private void CloseDialog() => _showDialog = false;
+
+    private async Task Delete(CourseDto c)
+    {
+        var extra = c.ResourceCount > 0 ? $" This also deletes its {c.ResourceCount} resource(s)." : "";
+        if (!await JS.InvokeAsync<bool>("confirm", $"Delete course {c.Code}?{extra}")) return;
+        Store.Write(d =>
+        {
+            d.Resources.RemoveAll(r => r.CourseId == c.Id);
+            d.Courses.RemoveAll(x => x.Id == c.Id);
+            return true;
+        });
+        Toasts.Show("Course deleted");
+        Reload();
+    }
+
+    private void Save()
+    {
+        var input = new CourseInput(_code, _title, _lecturer, _semester);
+        var errors = Validators.Course(input);
+        if (errors.Count > 0)
+        {
+            _error = string.Join(" ", errors.SelectMany(e => e.Value));
+            return;
+        }
+
+        var result = Store.Write(d =>
+        {
+            var code = input.Code!.Trim();
+            if (d.Courses.Any(c => c.Id != _editingId && c.Code.Equals(code, StringComparison.OrdinalIgnoreCase)))
+                return "A course with that code already exists.";
+
+            if (_editingId is Guid id)
+            {
+                var course = d.Courses.FirstOrDefault(c => c.Id == id);
+                if (course is null) return "Course not found.";
+                course.Code = code;
+                course.Title = input.Title!.Trim();
+                course.Lecturer = string.IsNullOrWhiteSpace(input.Lecturer) ? null : input.Lecturer.Trim();
+                course.Semester = string.IsNullOrWhiteSpace(input.Semester) ? null : input.Semester.Trim();
+            }
+            else
+            {
+                d.Courses.Add(new Course
+                {
+                    Code = code,
+                    Title = input.Title!.Trim(),
+                    Lecturer = string.IsNullOrWhiteSpace(input.Lecturer) ? null : input.Lecturer.Trim(),
+                    Semester = string.IsNullOrWhiteSpace(input.Semester) ? null : input.Semester.Trim()
+                });
+            }
+            return null;
+        });
+
+        if (result is not null)
+        {
+            _error = result;
+            return;
+        }
+
+        _showDialog = false;
+        Toasts.Show("Course saved");
+        Reload();
+    }
+}

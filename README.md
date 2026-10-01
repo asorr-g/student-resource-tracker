@@ -1,7 +1,7 @@
 # Student Academic Resource Tracker
 
 A C# / ASP.NET Core (.NET 8) web app for tracking the study materials, assignments and
-deadlines for each of your courses, with a dashboard that reports your progress.
+deadlines for each of your courses, with a Blazor dashboard that reports your progress.
 
 ## Features
 - **Courses**: add / edit / delete (deleting a course removes its resources).
@@ -36,7 +36,11 @@ Open `StudentResourceTracker.csproj` (or the folder) and press **F5** / Run.
 ## Project layout
 ```
 StudentResourceTracker/
-├── Program.cs                  # App startup + all REST endpoints
+├── Program.cs                  # App startup, REST API, Blazor hosting
+├── Components/                 # C# Razor UI (Blazor)
+│   ├── App.razor
+│   ├── Pages/                  # Dashboard, Resources, Courses
+│   └── Layout/
 ├── Models/
 │   ├── Entities.cs             # Course, StudyResource, enums, DataFile
 │   └── Dtos.cs                 # Request/response records
@@ -45,7 +49,7 @@ StudentResourceTracker/
 │   ├── AnalyticsService.cs     # Dashboard/report calculations
 │   ├── Validators.cs           # Input validation
 │   └── SeedData.cs             # First-run sample data
-└── wwwroot/                    # Front end (HTML/CSS/vanilla JS)
+└── wwwroot/                    # CSS and static assets
 ```
 
 ## REST API
