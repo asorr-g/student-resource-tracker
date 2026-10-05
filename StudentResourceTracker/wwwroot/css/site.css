@@ -1,0 +1,51 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  margin-bottom: 0;
+}
+
+/* Focus rings */
+.btn:focus, .btn:active:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+/* Card polish */
+.card { border-radius: 12px; }
+.card-header { border-radius: 12px 12px 0 0 !important; padding: 0.85rem 1.25rem; }
+
+/* Table headers */
+.table th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6c757d;
+}
+
+/* Navbar active */
+.navbar .nav-link:hover {
+  background-color: rgba(255,255,255,0.15);
+  border-radius: 6px;
+}
+
+/* Badge */
+.badge { font-weight: 500; }
+
+/* Footer to bottom */
+footer { margin-top: auto; }

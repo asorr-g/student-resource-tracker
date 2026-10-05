@@ -1,0 +1,158 @@
+﻿@model StudentResourceTracker.ViewModels.DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h2>
+    <div>
+        <a asp-controller="Students" asp-action="Create" class="btn btn-outline-primary btn-sm me-2">
+            <i class="bi bi-person-plus me-1"></i>New Student
+        </a>
+        <a asp-controller="Resources" asp-action="Create" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Add Resource
+        </a>
+    </div>
+</div>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="display-5 fw-bold text-primary">@Model.TotalStudents</div>
+                <div class="text-muted small mt-1"><i class="bi bi-people me-1"></i>Students</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="display-5 fw-bold text-info">@Model.TotalResources</div>
+                <div class="text-muted small mt-1"><i class="bi bi-journal-richtext me-1"></i>Resources</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="display-5 fw-bold text-success">@Model.CompletedResources</div>
+                <div class="text-muted small mt-1"><i class="bi bi-check-circle me-1"></i>Completed</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="display-5 fw-bold text-warning">@Model.TotalCategories</div>
+                <div class="text-muted small mt-1"><i class="bi bi-tags me-1"></i>Categories</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress bar -->
+@if (Model.TotalResources > 0)
+{
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between mb-1">
+                <span class="fw-semibold">Overall Completion</span>
+                <span class="text-muted small">@Model.CompletedResources / @Model.TotalResources resources</span>
+            </div>
+            <div class="progress" style="height: 12px;">
+                <div class="progress-bar bg-success" role="progressbar"
+                     style="width: @Model.CompletionPercent%"
+                     aria-valuenow="@Model.CompletionPercent" aria-valuemin="0" aria-valuemax="100">
+                    @Model.CompletionPercent%
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="row g-4">
+    <!-- Recent Resources -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <span class="fw-semibold"><i class="bi bi-clock-history me-2 text-primary"></i>Recent Resources</span>
+                <a asp-controller="Resources" asp-action="Index" class="btn btn-link btn-sm p-0">View all</a>
+            </div>
+            <div class="card-body p-0">
+                @if (!Model.RecentResources.Any())
+                {
+                    <p class="text-muted text-center py-4">No resources yet.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var r in Model.RecentResources)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-start py-3">
+                                <div>
+                                    <span class="fw-semibold">
+                                        @if (!string.IsNullOrEmpty(r.Url))
+                                        {
+                                            <a href="@r.Url" target="_blank" class="text-decoration-none">@r.Title <i class="bi bi-box-arrow-up-right small"></i></a>
+                                        }
+                                        else
+                                        {
+                                            @r.Title
+                                        }
+                                    </span>
+                                    <div class="text-muted small">
+                                        @if (r.Student != null) { <span><i class="bi bi-person me-1"></i>@r.Student.FullName</span> }
+                                        @if (r.Category != null) { <span class="ms-2"><i class="bi bi-tag me-1"></i>@r.Category.Name</span> }
+                                    </div>
+                                </div>
+                                @if (r.IsCompleted)
+                                {
+                                    <span class="badge bg-success">Done</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Pending</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Students -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <span class="fw-semibold"><i class="bi bi-people me-2 text-primary"></i>Recent Students</span>
+                <a asp-controller="Students" asp-action="Index" class="btn btn-link btn-sm p-0">View all</a>
+            </div>
+            <div class="card-body p-0">
+                @if (!Model.RecentStudents.Any())
+                {
+                    <p class="text-muted text-center py-4">No students yet.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var s in Model.RecentStudents)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                <div>
+                                    <a asp-controller="Students" asp-action="Details" asp-route-id="@s.Id"
+                                       class="fw-semibold text-decoration-none">@s.FullName</a>
+                                    <div class="text-muted small">@s.Course</div>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">
+                                    @s.Resources.Count resource@(s.Resources.Count == 1 ? "" : "s")
+                                </span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>

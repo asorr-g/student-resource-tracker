@@ -1,0 +1,33 @@
+@model StudentResourceTracker.Models.Student
+@{
+    ViewData["Title"] = "Delete Student";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm border-danger" style="border-top: 3px solid #dc3545 !important;">
+            <div class="card-body p-4 text-center">
+                <i class="bi bi-exclamation-triangle-fill text-danger display-4 mb-3"></i>
+                <h4>Delete Student?</h4>
+                <p class="text-muted">
+                    You're about to delete <strong>@Model.FullName</strong>. This will also remove all
+                    <strong>@Model.Resources.Count resource@(Model.Resources.Count == 1 ? "" : "s")</strong> assigned to them.
+                    This action cannot be undone.
+                </p>
+
+                <div class="card bg-light border-0 text-start my-3 p-3">
+                    <div><strong>Email:</strong> @Model.Email</div>
+                    <div><strong>Course:</strong> @(Model.Course ?? "—")</div>
+                    <div><strong>Student ID:</strong> @(Model.StudentNumber ?? "—")</div>
+                </div>
+
+                <form asp-action="Delete" method="post" class="d-flex justify-content-center gap-2 mt-3">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Yes, Delete
+                    </button>
+                    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

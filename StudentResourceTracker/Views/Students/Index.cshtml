@@ -1,0 +1,87 @@
+@model IEnumerable<StudentResourceTracker.Models.Student>
+@{
+    ViewData["Title"] = "Students";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="bi bi-people me-2 text-primary"></i>Students</h2>
+    <a asp-action="Create" class="btn btn-primary">
+        <i class="bi bi-person-plus me-1"></i>Add Student
+    </a>
+</div>
+
+<!-- Search -->
+<form method="get" class="mb-3">
+    <div class="input-group" style="max-width: 400px;">
+        <input type="text" name="search" value="@ViewBag.Search" class="form-control"
+               placeholder="Search by name, email, or course..." />
+        <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+        @if (!string.IsNullOrEmpty(ViewBag.Search as string))
+        {
+            <a asp-action="Index" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
+        }
+    </div>
+</form>
+
+@if (!Model.Any())
+{
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5 text-muted">
+            <i class="bi bi-people display-4 mb-3 d-block"></i>
+            No students found.
+            <div class="mt-3"><a asp-action="Create" class="btn btn-primary btn-sm">Add your first student</a></div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Course</th>
+                        <th>Student ID</th>
+                        <th class="text-center">Resources</th>
+                        <th>Enrolled</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model)
+                    {
+                        <tr>
+                            <td>
+                                <a asp-action="Details" asp-route-id="@s.Id" class="fw-semibold text-decoration-none">
+                                    @s.FullName
+                                </a>
+                            </td>
+                            <td class="text-muted small">@s.Email</td>
+                            <td>@s.Course</td>
+                            <td class="text-muted small">@s.StudentNumber</td>
+                            <td class="text-center">
+                                <span class="badge bg-primary rounded-pill">@s.Resources.Count</span>
+                            </td>
+                            <td class="text-muted small">@s.EnrolledOn.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <a asp-action="Details" asp-route-id="@s.Id" class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a asp-action="Edit" asp-route-id="@s.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a asp-action="Delete" asp-route-id="@s.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
