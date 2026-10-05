@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: student-resource-tracker
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    autoDeploy: true
